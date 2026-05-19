@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f0f4f3">
+<meta name="description" content="极简习惯打卡">
+<title>每日打卡</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green: #4CAF50; --green-dark: #388E3C; --green-light: #E8F5E9;
+  --bg: #f0f4f3; --card: #ffffff; --text: #1a1a2e; --text2: #6b7280;
+  --border: #e5e7eb; --red: #ef4444; --orange: #f59e0b; --blue: #3b82f6;
+  --radius: 16px; --radius-sm: 10px; --shadow: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+html { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text); height: 100%; overflow: hidden;
+  display: flex; flex-direction: column; user-select: none; -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; font-size: 15px; line-height: 1.5;
+}
+/* ===== Header ===== */
+.header {
+  background: var(--card); padding: 12px 20px; display: flex; align-items: center;
+  justify-content: space-between; flex-shrink: 0; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10;
+}
+.header-left .date-day { font-size: 20px; font-weight: 700; }
+.header-left .date-sub { font-size: 12px; color: var(--text2); margin-top: 1px; }
+.header-right { display: flex; gap: 6px; }
+.icon-btn {
+  width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--bg);
+  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--text2); transition: background 0.15s;
+}
+.icon-btn:active { background: #d1d5db; }
+/* ===== Main content ===== */
+.main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px; }
+/* ===== Stats strip ===== */
+.stats-strip {
+  display: flex; gap: 10px; margin-bottom: 18px;
+}
+.stat-item {
+  flex: 1; background: var(--card); border-radius: var(--radius); padding: 14px 12px;
+  text-align: center; box-shadow: var(--shadow);
+}
+.stat-item .stat-num { font-size: 26px; font-weight: 700; color: var(--green); }
+.stat-item .stat-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+/* ===== Task cards ===== */
+.section-title { font-size: 13px; color: var(--text2); margin-bottom: 10px; font-weight: 500; }
+.task-list { display: flex; flex-direction: column; gap: 12px; }
+.task-card {
+  background: var(--card); border-radius: var(--radius); padding: 18px;
+  box-shadow: var(--shadow); cursor: pointer; transition: transform 0.12s, box-shadow 0.12s;
+  position: relative; overflow: hidden;
+}
+.task-card:active { transform: scale(0.985); box-shadow: var(--shadow-md); }
+.task-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.task-info { display: flex; align-items: center; gap: 10px; }
+.task-emoji { font-size: 28px; line-height: 1; }
+.task-name { font-size: 17px; font-weight: 600; }
+.task-reminder { font-size: 11px; color: var(--text2); margin-top: 2px; display: flex; align-items: center; gap: 3px; }
+.task-stats-row { display: flex; gap: 16px; margin-bottom: 14px; }
+.task-stat { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text2); }
+.task-stat strong { color: var(--text); }
+.fire { color: var(--orange); }
+/* ===== Check-in button ===== */
+.check-btn {
+  width: 100%; padding: 13px; border-radius: var(--radius-sm); border: 2px dashed var(--border);
+  background: var(--bg); font-size: 15px; font-weight: 600; color: var(--text2);
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+}
+.check-btn:active { transform: scale(0.97); }
+.check-btn.done {
+  background: var(--green-light); border-color: var(--green); color: var(--green-dark);
+  border-style: solid;
+}
+.check-btn.done::before { content: "✅ "; }
+.check-btn.undone::before { content: "⭕ "; }
+/* ===== Empty state ===== */
+.empty-state {
+  text-align: center; padding: 60px 20px; color: var(--text2);
+}
+.empty-state .empty-icon { font-size: 64px; margin-bottom: 16px; }
+.empty-state .empty-text { font-size: 15px; margin-bottom: 20px; }
+.empty-state .empty-hint { font-size: 12px; color: #9ca3af; }
+/* ===== Detail page ===== */
+.view { display: none; flex-direction: column; height: 100%; }
+.view.active { display: flex; }
+.detail-header {
+  background: var(--card); padding: 14px 20px; display: flex; align-items: center;
+  gap: 12px; flex-shrink: 0; border-bottom: 1px solid var(--border);
+}
+.back-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--bg);
+  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.detail-title { font-size: 17px; font-weight: 600; flex: 1; }
+.detail-actions { display: flex; gap: 6px; }
+.detail-stats {
+  display: flex; gap: 10px; padding: 16px 20px; background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.detail-stat {
+  flex: 1; text-align: center; padding: 10px 6px; border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.detail-stat .ds-num { font-size: 22px; font-weight: 700; color: var(--green); }
+.detail-stat .ds-label { font-size: 11px; color: var(--text2); }
+/* ===== Calendar ===== */
+.calendar-wrap { padding: 16px 20px; flex: 1; overflow-y: auto; }
+.cal-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; font-size: 16px; font-weight: 600;
+}
+.cal-nav button {
+  width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--bg);
+  font-size: 16px; cursor: pointer;
+}
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
+.cal-day-label { font-size: 11px; color: var(--text2); padding: 4px 0; }
+.cal-cell {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; font-size: 13px; cursor: default; position: relative;
+}
+.cal-cell.checked { background: var(--green); color: #fff; font-weight: 600; }
+.cal-cell.today { border: 2px solid var(--green); color: var(--green); font-weight: 600; }
+.cal-cell.today.checked { background: var(--green); color: #fff; border-color: var(--green-dark); }
+.cal-cell.other-month { color: #d1d5db; }
+.cal-legend { display: flex; gap: 16px; margin-top: 14px; font-size: 12px; color: var(--text2); align-items: center; }
+.cal-legend span { display: flex; align-items: center; gap: 4px; }
+.cal-legend .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.cal-legend .dot.green { background: var(--green); }
+.cal-legend .dot.outline { border: 2px solid var(--green); background: transparent; }
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100;
+  display: none; align-items: flex-end; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--card); width: 100%; max-width: 480px; border-radius: 20px 20px 0 0;
+  padding: 0; max-height: 85vh; overflow-y: auto; animation: slideUp 0.25s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex;
+  align-items: center; justify-content: space-between; position: sticky; top: 0;
+  background: var(--card); border-radius: 20px 20px 0 0; z-index: 1;
+}
+.modal-header h3 { font-size: 17px; font-weight: 600; }
+.modal-close {
+  width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--bg);
+  font-size: 16px; cursor: pointer;
+}
+.modal-body { padding: 20px; }
+.form-group { margin-bottom: 18px; }
+.form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.form-input {
+  width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 15px; outline: none; font-family: inherit; background: var(--bg);
+  transition: border-color 0.15s;
+}
+.form-input:focus { border-color: var(--green); }
+.emoji-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px;
+}
+.emoji-option {
+  width: 100%; aspect-ratio: 1; border-radius: var(--radius-sm); border: 2px solid transparent;
+  background: var(--bg); font-size: 22px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; transition: border-color 0.15s;
+}
+.emoji-option.selected { border-color: var(--green); background: var(--green-light); }
+.color-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.color-option {
+  width: 36px; height: 36px; border-radius: 50%; border: 3px solid transparent;
+  cursor: pointer; transition: transform 0.12s, border-color 0.12s;
+}
+.color-option:active { transform: scale(0.9); }
+.color-option.selected { border-color: var(--text); transform: scale(1.1); }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; }
+.toggle {
+  width: 50px; height: 30px; border-radius: 15px; border: none; cursor: pointer;
+  position: relative; transition: background 0.2s; background: #d1d5db;
+}
+.toggle.on { background: var(--green); }
+.toggle::after {
+  content: ""; width: 24px; height: 24px; border-radius: 50%; background: #fff;
+  position: absolute; top: 3px; left: 3px; transition: left 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.toggle.on::after { left: 23px; }
+.btn {
+  padding: 12px 24px; border-radius: var(--radius-sm); border: none; font-size: 15px;
+  font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity 0.15s;
+}
+.btn:active { opacity: 0.8; }
+.btn-primary { background: var(--green); color: #fff; width: 100%; }
+.btn-danger { background: #fee2e2; color: var(--red); width: 100%; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); width: 100%; }
+.btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 8px; }
+/* ===== Toast ===== */
+.toast {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 200;
+  background: #1a1a2e; color: #fff; padding: 12px 24px; border-radius: 25px;
+  font-size: 14px; font-weight: 500; pointer-events: none; opacity: 0;
+  transition: opacity 0.25s; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+/* ===== Reminder alert ===== */
+.reminder-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150;
+  display: none; align-items: center; justify-content: center;
+}
+.reminder-overlay.show { display: flex; }
+.reminder-box {
+  background: var(--card); border-radius: var(--radius); padding: 30px 24px;
+  text-align: center; max-width: 300px; width: 90%; box-shadow: var(--shadow-md);
+}
+.reminder-box .rem-icon { font-size: 48px; margin-bottom: 12px; }
+.reminder-box .rem-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.reminder-box .rem-desc { font-size: 14px; color: var(--text2); margin-bottom: 20px; }
+.reminder-box .rem-btn {
+  width: 100%; padding: 12px; border-radius: var(--radius-sm); border: none;
+  background: var(--green); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+/* ===== FAB ===== */
+.fab {
+  position: fixed; bottom: 24px; right: 20px; width: 56px; height: 56px; border-radius: 50%;
+  background: var(--green); color: #fff; border: none; font-size: 28px; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(76,175,80,0.35); z-index: 20; transition: transform 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.fab:active { transform: scale(0.9); }
+/* ===== Settings page ===== */
+.settings-section { margin-bottom: 20px; }
+.settings-section h4 { font-size: 12px; color: var(--text2); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.settings-card {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between; padding: 16px 18px;
+  border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s;
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row:active { background: var(--bg); }
+.settings-row .sr-left { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.settings-row .sr-icon { font-size: 18px; }
+.settings-row .sr-arrow { color: #c5c5c5; font-size: 14px; }
+/* ===== Confirm dialog ===== */
+.confirm-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 160;
+  display: none; align-items: center; justify-content: center;
+}
+.confirm-overlay.show { display: flex; }
+.confirm-box {
+  background: var(--card); border-radius: var(--radius); padding: 24px 20px;
+  text-align: center; max-width: 300px; width: 90%;
+}
+.confirm-box .cf-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+.confirm-box .cf-desc { font-size: 14px; color: var(--text2); margin-bottom: 20px; }
+.confirm-box .cf-btns { display: flex; gap: 10px; }
+.confirm-box .cf-btns button { flex: 1; }
+/* ===== Check-in burst animation ===== */
+@keyframes burst {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.burst { animation: burst 0.35s ease; }
+</style>
+</head>
+<body>
+
+<!-- ====== 今日首页 ====== -->
+<div id="view-today" class="view active">
+  <div class="header">
+    <div class="header-left">
+      <div class="date-day" id="dateDisplay">加载中...</div>
+      <div class="date-sub" id="weekdayDisplay"></div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" onclick="App.openSettings()" title="设置">⚙️</button>
+    </div>
+  </div>
+  <div class="main" id="todayMain">
+    <div class="stats-strip" id="statsStrip"></div>
+    <div id="taskListContainer"></div>
+  </div>
+  <button class="fab" onclick="App.openAddModal()" title="添加打卡">+</button>
+</div>
+
+<!-- ====== 任务详情页 ====== -->
+<div id="view-detail" class="view">
+  <div class="detail-header">
+    <button class="back-btn" onclick="App.goBack()">←</button>
+    <span class="detail-title" id="detailTitle"></span>
+    <div class="detail-actions">
+      <button class="icon-btn" onclick="App.editCurrentTask()" title="编辑">✏️</button>
+      <button class="icon-btn" onclick="App.deleteCurrentTask()" title="删除" style="color:var(--red)">🗑️</button>
+    </div>
+  </div>
+  <div class="detail-stats" id="detailStats"></div>
+  <div class="calendar-wrap" id="calendarWrap"></div>
+</div>
+
+<!-- ====== 设置页 ====== -->
+<div id="view-settings" class="view">
+  <div class="detail-header">
+    <button class="back-btn" onclick="App.goBack()">←</button>
+    <span class="detail-title">设置</span>
+    <div></div>
+  </div>
+  <div class="main">
+    <div class="settings-section">
+      <h4>数据管理</h4>
+      <div class="settings-card">
+        <div class="settings-row" onclick="App.exportData()">
+          <span class="sr-left"><span class="sr-icon">📤</span>导出数据备份</span>
+          <span class="sr-arrow">›</span>
+        </div>
+        <div class="settings-row" onclick="document.getElementById('importFile').click()">
+          <span class="sr-left"><span class="sr-icon">📥</span>导入数据恢复</span>
+          <span class="sr-arrow">›</span>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="App.importData(this)">
+        <div class="settings-row" onclick="App.confirmClear()">
+          <span class="sr-left"><span class="sr-icon" style="color:var(--red)">⚠️</span>清除全部数据</span>
+          <span class="sr-arrow">›</span>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h4>关于</h4>
+      <div class="settings-card">
+        <div class="settings-row" style="cursor:default">
+          <span class="sr-left">版本</span>
+          <span style="color:var(--text2);font-size:14px">1.0.0</span>
+        </div>
+        <div class="settings-row" style="cursor:default">
+          <span class="sr-left">技术</span>
+          <span style="color:var(--text2);font-size:14px">PWA · 纯离线</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 添加/编辑任务弹窗 ====== -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">添加打卡</h3>
+      <button class="modal-close" onclick="App.closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">打卡名称</label>
+        <input class="form-input" id="inputName" type="text" placeholder="例如：学习、跑步、早睡..." maxlength="20">
+      </div>
+      <div class="form-group">
+        <label class="form-label">选择图标</label>
+        <div class="emoji-grid" id="emojiGrid"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">主题颜色</label>
+        <div class="color-grid" id="colorGrid"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">每日提醒时间</label>
+        <input class="form-input" id="inputReminder" type="time" value="08:00">
+      </div>
+      <div class="form-group">
+        <div class="toggle-row">
+          <span class="form-label" style="margin:0">开启提醒</span>
+          <button class="toggle on" id="toggleReminder" onclick="App.toggleReminderSetting()"></button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btnSaveTask" onclick="App.saveTask()">保存</button>
+      <div id="deleteInEdit" style="margin-top:10px; display:none;">
+        <button class="btn btn-danger" onclick="App.deleteInEdit()">删除此打卡</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Toast ====== -->
+<div class="toast" id="toast"></div>
+
+<!-- ====== 提醒弹窗 ====== -->
+<div class="reminder-overlay" id="reminderOverlay">
+  <div class="reminder-box">
+    <div class="rem-icon">⏰</div>
+    <div class="rem-title" id="remTaskName"></div>
+    <div class="rem-desc">该打卡啦，坚持就是胜利！</div>
+    <button class="rem-btn" onclick="App.dismissReminder()">知道了</button>
+  </div>
+</div>
+
+<!-- ====== 确认弹窗 ====== -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="cf-title">确认清除</div>
+    <div class="cf-desc">此操作将删除所有打卡数据，不可恢复。建议先导出备份。</div>
+    <div class="cf-btns">
+      <button class="btn btn-outline" onclick="App.closeConfirm()">取消</button>
+      <button class="btn btn-danger btn-sm" id="confirmOkBtn" onclick="App.executeConfirm()">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===========================
+//  每日打卡 APP — 完整逻辑
+// ===========================
+
+const STORAGE_KEY = "habit_tracker_v2";
+const EMOJIS = ["📚","💪","🏃","🧘","🌅","🌙","💤","🍎","💧","📝","🏊","🚴","🎯","⏰","🎵","🧹","💻","🚶","🎨","✏️","📱","❤️","⭐","🔥","✨","🌟","💭","🎸","⚽","🏀","☕","📖"];
+const COLORS = ["#4CAF50","#2196F3","#FF9800","#9C27B0","#F44336","#00BCD4","#FF5722","#607D8B","#E91E63","#3F51B5","#009688","#795548"];
+
+const App = {
+  data: { tasks: [] },
+  editingId: null,
+  editingReminderOn: true,
+  reminderTimers: [],
+
+  // ===== 初始化 =====
+  init() {
+    this.loadData();
+    this.renderToday();
+    this.startReminderCheck();
+    this.updateClock();
+    setInterval(() => this.updateClock(), 30000);
+    // 请求通知权限（静默）
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  },
+
+  // ===== 数据读写 =====
+  loadData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.tasks)) {
+          this.data = parsed;
+          // 兼容旧数据
+          this.data.tasks.forEach(t => {
+            if (!t.records) t.records = {};
+            if (!t.emoji) t.emoji = "📌";
+            if (!t.color) t.color = "#4CAF50";
+            if (t.reminderEnabled === undefined) t.reminderEnabled = !!t.reminderTime;
+          });
+          return;
+        }
+      }
+    } catch (e) {}
+    this.data = { tasks: [] };
+  },
+
+  saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+  },
+
+  // ===== 工具函数 =====
+  todayStr() { return this.formatDate(new Date()); },
+  formatDate(d) { const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,"0"); const dd = String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${dd}`; },
+  uuid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); },
+
+  // ===== 连续天数计算 =====
+  getStreak(task) {
+    const today = this.todayStr();
+    let streak = 0;
+    const d = new Date();
+    // 如果今天没打卡，从昨天开始算
+    if (!task.records[today]) {
+      d.setDate(d.getDate() - 1);
+    }
+    while (task.records[this.formatDate(d)]) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    }
+    return streak;
+  },
+
+  getLongestStreak(task) {
+    const dates = Object.keys(task.records).filter(k => task.records[k]).sort();
+    if (!dates.length) return 0;
+    let longest = 0, current = 1;
+    for (let i = 1; i < dates.length; i++) {
+      const prev = new Date(dates[i-1]);
+      const cur = new Date(dates[i]);
+      const diff = (cur - prev) / 86400000;
+      if (diff === 1) { current++; } else { longest = Math.max(longest, current); current = 1; }
+    }
+    return Math.max(longest, current);
+  },
+
+  // ===== 时钟更新 =====
+  updateClock() {
+    const now = new Date();
+    const weekdays = ["日","一","二","三","四","五","六"];
+    document.getElementById("dateDisplay").textContent =
+      `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+    document.getElementById("weekdayDisplay").textContent =
+      `星期${weekdays[now.getDay()]}`;
+  },
+
+  // ===== 渲染今日页 =====
+  renderToday() {
+    const tasks = this.data.tasks;
+    const today = this.todayStr();
+    // 统计条
+    const totalChecked = tasks.reduce((s,t) => s + Object.keys(t.records).length, 0);
+    const todayDone = tasks.filter(t => t.records[today]).length;
+    const bestStreak = tasks.reduce((max,t) => Math.max(max, this.getStreak(t)), 0);
+    document.getElementById("statsStrip").innerHTML = `
+      <div class="stat-item">
+        <div class="stat-num">${todayDone}/${tasks.length}</div>
+        <div class="stat-label">今日已打卡</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">${totalChecked}</div>
+        <div class="stat-label">累计打卡</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">${bestStreak}🔥</div>
+        <div class="stat-label">最佳连续</div>
+      </div>
+    `;
+    // 任务列表
+    const container = document.getElementById("taskListContainer");
+    if (!tasks.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <div class="empty-text">还没有打卡任务</div>
+          <div class="empty-hint">点击右下角 + 添加第一个打卡吧</div>
+        </div>`;
+      return;
+    }
+    container.innerHTML = tasks.map(t => {
+      const done = !!t.records[today];
+      const streak = this.getStreak(t);
+      const total = Object.keys(t.records).length;
+      const reminderHtml = t.reminderEnabled && t.reminderTime
+        ? `<div class="task-reminder">🔔 每天 ${t.reminderTime}</div>` : "";
+      return `
+        <div class="task-card" onclick="App.openDetail('${t.id}')">
+          <div class="task-top">
+            <div class="task-info">
+              <span class="task-emoji">${t.emoji}</span>
+              <div>
+                <div class="task-name">${this.escHtml(t.name)}</div>
+                ${reminderHtml}
+              </div>
+            </div>
+            <span style="font-size:20px;color:#c5c5c5">›</span>
+          </div>
+          <div class="task-stats-row">
+            <div class="task-stat">📅 累计 <strong>${total}</strong> 天</div>
+            <div class="task-stat fire">🔥 连续 <strong>${streak}</strong> 天</div>
+          </div>
+          <button class="check-btn ${done ? 'done' : 'undone'}"
+            onclick="event.stopPropagation(); App.toggleCheck('${t.id}')">
+            ${done ? '今日已打卡' : '点击打卡'}
+          </button>
+        </div>`;
+    }).join("");
+  },
+
+  // ===== 打卡/取消打卡 =====
+  toggleCheck(taskId) {
+    const task = this.data.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const today = this.todayStr();
+    if (task.records[today]) {
+      delete task.records[today];
+      this.toast("已取消打卡");
+    } else {
+      task.records[today] = true;
+      this.toast("✅ 打卡成功！");
+      // 震动反馈
+      if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+    }
+    this.saveData();
+    this.renderToday();
+  },
+
+  // ===== 详情页 =====
+  openDetail(taskId) {
+    const task = this.data.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    this.editingId = taskId;
+    document.getElementById("detailTitle").textContent = task.emoji + " " + task.name;
+    // 统计
+    const total = Object.keys(task.records).length;
+    const streak = this.getStreak(task);
+    const longest = this.getLongestStreak(task);
+    document.getElementById("detailStats").innerHTML = `
+      <div class="detail-stat"><div class="ds-num">${total}</div><div class="ds-label">累计打卡</div></div>
+      <div class="detail-stat"><div class="ds-num fire">${streak}🔥</div><div class="ds-label">当前连续</div></div>
+      <div class="detail-stat"><div class="ds-num">${longest}</div><div class="ds-label">最长连续</div></div>
+    `;
+    // 日历
+    this.renderCalendar(task);
+    this.showView("detail");
+  },
+
+  renderCalendar(task, year, month) {
+    const now = new Date();
+    if (year === undefined) year = now.getFullYear();
+    if (month === undefined) month = now.getMonth(); // 0-based
+    const today = this.todayStr();
+    const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    const startOffset = (firstDay + 6) % 7; // 周一开始
+
+    const dayLabels = ["一","二","三","四","五","六","日"];
+    let html = `
+      <div class="cal-nav">
+        <button onclick="App.changeMonth(-1)">‹</button>
+        <span>${year}年${month+1}月</span>
+        <button onclick="App.changeMonth(1)">›</button>
+      </div>
+      <div class="cal-grid">
+        ${dayLabels.map(l => `<div class="cal-day-label">${l}</div>`).join("")}`;
+
+    for (let i = 0; i < startOffset; i++) {
+      html += `<div class="cal-cell other-month"></div>`;
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      const checked = !!task.records[dateStr];
+      const isToday = dateStr === today;
+      let cls = "cal-cell";
+      if (checked) cls += " checked";
+      if (isToday) cls += " today";
+      html += `<div class="${cls}">${d}</div>`;
+    }
+    html += `</div>
+      <div class="cal-legend">
+        <span><span class="dot green"></span> 已打卡</span>
+        <span><span class="dot outline"></span> 今天</span>
+      </div>`;
+
+    document.getElementById("calendarWrap").innerHTML = html;
+    // 存储当前年月用于翻页
+    document.getElementById("calendarWrap").dataset.year = year;
+    document.getElementById("calendarWrap").dataset.month = month;
+  },
+
+  changeMonth(delta) {
+    const wrap = document.getElementById("calendarWrap");
+    let year = parseInt(wrap.dataset.year);
+    let month = parseInt(wrap.dataset.month) + delta;
+    if (month < 0) { month = 11; year--; }
+    if (month > 11) { month = 0; year++; }
+    const task = this.data.tasks.find(t => t.id === this.editingId);
+    if (task) this.renderCalendar(task, year, month);
+  },
+
+  // ===== 任务 CRUD =====
+  openAddModal() {
+    this.editingId = null;
+    this.editingReminderOn = true;
+    document.getElementById("modalTitle").textContent = "添加打卡";
+    document.getElementById("inputName").value = "";
+    document.getElementById("inputReminder").value = "08:00";
+    document.getElementById("deleteInEdit").style.display = "none";
+    document.getElementById("btnSaveTask").textContent = "保存";
+    this.renderEmojiPicker(null);
+    this.renderColorPicker(null);
+    this.updateToggleBtn();
+    document.getElementById("taskModal").classList.add("show");
+    setTimeout(() => document.getElementById("inputName").focus(), 300);
+  },
+
+  openEditModal(taskId) {
+    const task = this.data.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    this.editingId = taskId;
+    this.editingReminderOn = task.reminderEnabled;
+    document.getElementById("modalTitle").textContent = "编辑打卡";
+    document.getElementById("inputName").value = task.name;
+    document.getElementById("inputReminder").value = task.reminderTime || "08:00";
+    document.getElementById("deleteInEdit").style.display = "block";
+    document.getElementById("btnSaveTask").textContent = "保存修改";
+    this.renderEmojiPicker(task.emoji);
+    this.renderColorPicker(task.color);
+    this.updateToggleBtn();
+    document.getElementById("taskModal").classList.add("show");
+  },
+
+  editCurrentTask() {
+    this.openEditModal(this.editingId);
+  },
+
+  closeModal() {
+    document.getElementById("taskModal").classList.remove("show");
+    this.editingId = null;
+  },
+
+  saveTask() {
+    const name = document.getElementById("inputName").value.trim();
+    if (!name) { this.toast("请输入打卡名称"); return; }
+    const emoji = document.querySelector(".emoji-option.selected")?.dataset.emoji || "📌";
+    const color = document.querySelector(".color-option.selected")?.dataset.color || "#4CAF50";
+    const reminderTime = document.getElementById("inputReminder").value;
+    const reminderEnabled = this.editingReminderOn;
+    const isEdit = !!this.editingId;
+    const savedId = isEdit ? this.editingId : this.uuid();
+
+    if (isEdit) {
+      const task = this.data.tasks.find(t => t.id === savedId);
+      if (task) {
+        task.name = name; task.emoji = emoji; task.color = color;
+        task.reminderTime = reminderTime; task.reminderEnabled = reminderEnabled;
+      }
+    } else {
+      this.data.tasks.push({
+        id: savedId, name, emoji, color, reminderTime,
+        reminderEnabled, records: {}, createdAt: new Date().toISOString()
+      });
+    }
+    this.saveData();
+    this.closeModal();
+    this.renderToday();
+    if (document.getElementById("view-detail").classList.contains("active")) {
+      this.openDetail(savedId);
+    }
+    this.toast(isEdit ? "已更新" : "已添加");
+  },
+
+  deleteCurrentTask() {
+    if (!this.editingId) return;
+    this.showConfirm("确认删除？", "删除后打卡记录也将清除，不可恢复。", "确认删除", () => {
+      this.data.tasks = this.data.tasks.filter(t => t.id !== this.editingId);
+      this.saveData();
+      this.editingId = null;
+      this.goBack();
+      this.renderToday();
+      this.toast("已删除");
+    });
+  },
+
+  deleteInEdit() {
+    const id = this.editingId;
+    this.closeModal();
+    this.editingId = id;
+    this.deleteCurrentTask();
+  },
+
+  // ===== 图标/颜色选择器 =====
+  renderEmojiPicker(selected) {
+    document.getElementById("emojiGrid").innerHTML = EMOJIS.map(e =>
+      `<button class="emoji-option${e === selected ? ' selected' : ''}" data-emoji="${e}" onclick="App.selectEmoji(this)">${e}</button>`
+    ).join("");
+  },
+
+  selectEmoji(el) {
+    document.querySelectorAll(".emoji-option").forEach(b => b.classList.remove("selected"));
+    el.classList.add("selected");
+  },
+
+  renderColorPicker(selected) {
+    document.getElementById("colorGrid").innerHTML = COLORS.map(c =>
+      `<button class="color-option${c === selected ? ' selected' : ''}" data-color="${c}"
+        style="background:${c}" onclick="App.selectColor(this)"></button>`
+    ).join("");
+  },
+
+  selectColor(el) {
+    document.querySelectorAll(".color-option").forEach(b => b.classList.remove("selected"));
+    el.classList.add("selected");
+  },
+
+  toggleReminderSetting() {
+    this.editingReminderOn = !this.editingReminderOn;
+    this.updateToggleBtn();
+  },
+
+  updateToggleBtn() {
+    const btn = document.getElementById("toggleReminder");
+    btn.className = "toggle" + (this.editingReminderOn ? " on" : "");
+  },
+
+  // ===== 页面切换 =====
+  showView(viewName) {
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    document.getElementById("view-" + viewName).classList.add("active");
+    if (viewName === "today") { this.renderToday(); this.editingId = null; }
+  },
+
+  goBack() { this.showView("today"); },
+
+  openSettings() { this.showView("settings"); },
+
+  // ===== Toast =====
+  toast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
+  },
+
+  // ===== 提醒系统 =====
+  startReminderCheck() {
+    // 每30秒检查一次
+    this._reminderInterval = setInterval(() => this.checkReminders(), 30000);
+    this.checkReminders(); // 立即检查一次
+  },
+
+  checkReminders() {
+    if (this._reminderActive) return; // 已有提醒在显示
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    const today = this.todayStr();
+
+    for (const task of this.data.tasks) {
+      if (!task.reminderEnabled || !task.reminderTime) continue;
+      if (task.reminderTime !== timeStr) continue;
+      if (task.records[today]) continue; // 今天已打卡，不提醒
+      this.triggerReminder(task);
+      break; // 一次只弹一个
+    }
+  },
+
+  triggerReminder(task) {
+    this._reminderActive = true;
+    // 震动
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+    // 系统通知
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("⏰ 该打卡了", { body: `${task.emoji} ${task.name} — 坚持就是胜利！`, icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>✅</text></svg>", vibrate: [200,100,200] });
+    }
+    // 应用内弹窗
+    document.getElementById("remTaskName").textContent = task.emoji + " " + task.name;
+    document.getElementById("reminderOverlay").classList.add("show");
+    // 持续震动
+    this._vibrateTimer = setInterval(() => {
+      if (navigator.vibrate) navigator.vibrate(500);
+    }, 3000);
+  },
+
+  dismissReminder() {
+    document.getElementById("reminderOverlay").classList.remove("show");
+    this._reminderActive = false;
+    clearInterval(this._vibrateTimer);
+    // 跳转到今日页
+    this.showView("today");
+  },
+
+  // ===== 数据导出/导入 =====
+  exportData() {
+    const json = JSON.stringify(this.data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `打卡数据备份_${this.todayStr()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.toast("数据已导出");
+  },
+
+  importData(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data.tasks || !Array.isArray(data.tasks)) throw new Error("格式错误");
+        this.showConfirm("确认导入？", `将导入 ${data.tasks.length} 个打卡任务。当前数据将被覆盖，建议先导出备份。`, "确认导入", () => {
+          this.data = data;
+          this.data.tasks.forEach(t => { if (!t.records) t.records = {}; });
+          this.saveData();
+          this.renderToday();
+          this.toast("数据已导入");
+        });
+      } catch (err) {
+        this.toast("导入失败：文件格式不正确");
+      }
+    };
+    reader.readAsText(file);
+    input.value = "";
+  },
+
+  // ===== 确认对话框 =====
+  showConfirm(title, desc, btnText, onOk) {
+    document.querySelector("#confirmOverlay .cf-title").textContent = title;
+    document.querySelector("#confirmOverlay .cf-desc").textContent = desc;
+    document.getElementById("confirmOkBtn").textContent = btnText || "确认";
+    document.getElementById("confirmOverlay").classList.add("show");
+    this._confirmOk = onOk;
+  },
+
+  executeConfirm() {
+    const cb = this._confirmOk;
+    this.closeConfirm();
+    if (cb) cb();
+  },
+
+  closeConfirm() {
+    document.getElementById("confirmOverlay").classList.remove("show");
+    this._confirmOk = null;
+  },
+
+  confirmClear() {
+    this.showConfirm("确认清除全部数据？", "此操作将删除所有打卡数据，不可恢复。强烈建议先导出备份。", "确认清除", () => this.doClear());
+  },
+
+  doClear() {
+    this.data = { tasks: [] };
+    this.saveData();
+    this.renderToday();
+    this.closeConfirm();
+    this.toast("数据已清除");
+  },
+
+  // ===== 辅助 =====
+  escHtml(s) {
+    const div = document.createElement("div");
+    div.textContent = s;
+    return div.innerHTML;
+  }
+};
+
+// ===== 点击弹窗外关闭 =====
+document.getElementById("taskModal").addEventListener("click", function(e) {
+  if (e.target === this) App.closeModal();
+});
+document.getElementById("reminderOverlay").addEventListener("click", function(e) {
+  if (e.target === this) App.dismissReminder();
+});
+document.getElementById("confirmOverlay").addEventListener("click", function(e) {
+  if (e.target === this) App.closeConfirm();
+});
+
+// ===== Service Worker 注册 =====
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+// ===== 启动 =====
+App.init();
+</script>
+</body>
+</html>
